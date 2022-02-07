@@ -1,4 +1,4 @@
-# Pull Request Template
+# Pull Request MON-12273
 
 ## Description
 
@@ -10,7 +10,7 @@ Please include a short resume of the changes and what is the purpose of PR. Any 
 
 ## Type of change
 
-- [ ] Patch fixing an issue (non-breaking change)
+- [X] Patch fixing an issue (non-breaking change)
 - [ ] New functionality (non-breaking change)
 - [ ] Breaking change (patch or feature) that might cause side effects breaking part of the Software
 
@@ -19,7 +19,7 @@ Please include a short resume of the changes and what is the purpose of PR. Any 
 - [ ] 20.10.x
 - [ ] 21.04.x
 - [ ] 21.10.x
-- [ ] 22.04.x (master)
+- [X] 22.04.x (master)
 
 <h2> How this pull request can be tested ? </h2>
 
