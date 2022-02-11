@@ -132,8 +132,8 @@ try {
         stash name: "rpms-centos7", includes: 'output/noarch/*.rpm'
         sh 'rm -rf output'
       }
-    },
-    'RPM packaging centos8': {
+    }
+    /*'RPM packaging centos8': {
       node {
         checkoutCentreonBuild(buildBranch)
         sh "./centreon-build/jobs/widgets/${serie}/widget-package.sh centos8"
@@ -141,7 +141,7 @@ try {
         stash name: "rpms-centos8", includes: 'output/noarch/*.rpm'
         sh 'rm -rf output'      
       }
-    }
+    }*/
     if ((currentBuild.result ?: 'SUCCESS') != 'SUCCESS') {
       error('Unit tests stage failure.');
     }
@@ -151,7 +151,7 @@ try {
     stage('Delivery') {
       node {
         checkoutCentreonBuild(buildBranch)
-        unstash 'rpms-centos8'
+       // unstash 'rpms-centos8'
         unstash 'rpms-centos7'
         sh "./centreon-build/jobs/widgets/${serie}/widget-delivery.sh"
       }
@@ -164,7 +164,7 @@ try {
   if ((env.BUILD == 'RELEASE') || (env.BUILD == 'REFERENCE')) {
     slackSend channel: "#monitoring-metrology",
         color: "#F30031",
-        message: "*FAILURE*: `CENTREON WIDGET HOSTGROUP MONITORING` <${env.BUILD_URL}|build #${env.BUILD_NUMBER}> on branch ${env.BRANCH_NAME}\n" +
+        message: "*FAILURE*: `CENTREON WIDGET SINGLE METRIC` <${env.BUILD_URL}|build #${env.BUILD_NUMBER}> on branch ${env.BRANCH_NAME}\n" +
             "*COMMIT*: <https://github.com/centreon/centreon-widget-single-metric/commit/${source.COMMIT}|here> by ${source.COMMITTER}\n" +
             "*INFO*: ${e}"
   }
