@@ -1,6 +1,6 @@
 <?php
 
-/*
+/**
  * Copyright 2005 - 2022 Centreon (https://www.centreon.com/)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -49,6 +49,13 @@ try {
     $widgetObj = new CentreonWidget($centreon, $db_centreon);
     $preferences = $widgetObj->getWidgetPreferences($widgetId);
     $autoRefresh = filter_var($preferences['refresh_interval'], FILTER_VALIDATE_INT);
+    $preferences['metric_name'] = filter_var($preferences['metric_name'], FILTER_SANITIZE_STRING);
+    $preferences['font_size'] = filter_var($preferences['font_size'], FILTER_VALIDATE_INT);
+    $preferences['display_number'] = filter_var($preferences['display_number'], FILTER_VALIDATE_INT);
+    $preferences['coloring'] = filter_var($preferences['coloring'], FILTER_SANITIZE_STRING);
+    $preferences['display_path'] = filter_var($preferences['display_path'], FILTER_VALIDATE_BOOLEAN);
+    $preferences['display_threshold'] = filter_var($preferences['display_threshold'], FILTER_VALIDATE_BOOLEAN);
+
     if ($autoRefresh === false || $autoRefresh < 5) {
         $autoRefresh = 30;
     }
@@ -76,26 +83,29 @@ $template = initSmartyTplForPopup($path, $template, "./", $centreon_path);
 
 $data = array();
 
-// Functions
-function humanReadable($value,$unit,$base) {
+/**
+* Functions
+* Function Human Readable
+*/
+function hr($value, $unit, $base)
+{
     $precision = 2;
-    $prefix = array('a', 'f', 'p', 'n', 'u', 'm', '', 'k', 'M', 'G', 'T', 'P', 'E','Z','Y');
+    $prefix = array('a', 'f', 'p', 'n', 'u', 'm', '', 'k', 'M', 'G', 'T', 'P', 'E', 'Z', 'Y');
     $puissance = min(max(floor(log(abs($value), $base)), -6), 6);
     $new_value = [ round((float)$value / pow($base, $puissance), $precision), $prefix[$puissance + 6] . $unit];
     return($new_value);
 }
 
-if ($preferences['service'] == null)
-{
-  $template->display('metric.ihtml');
-} else if ($preferences['service'] == "") {
-  $template->display('metric.ihtml');
+if ($preferences['service'] == null) {
+    $template->display('metric.ihtml');
+} elseif ($preferences['service'] == "") {
+    $template->display('metric.ihtml');
 } else {
-  $tabService = explode("-", $preferences['service']);
-  $hostid = $tabService[0];
-  $serviceid = $tabService[1];
+    $tabService = explode("-", $preferences['service']);
+    $hostid = $tabService[0];
+    $serviceid = $tabService[1];
 
-  $query = "SELECT
+    $query = "SELECT
         i.host_name AS host_name,
         i.service_description AS service_description,
         i.service_id AS service_id,
@@ -113,58 +123,65 @@ if ($preferences['service'] == null)
     . ($centreon->user->admin == 0 ? ", centreon_acl acl " : "")
     . " , index_data i
     LEFT JOIN services s ON s.service_id  = i.service_id AND s.enabled = 1
-    WHERE i.service_id = " . $serviceid . "
+    WHERE i.service_id = :serviceid
     AND i.id = m.index_id
-    AND m.metric_name = '" . $preferences['metric_name'] . "'
+    AND m.metric_name = :metricname
     AND i.host_id = h.host_id 
-    AND i.host_id = " . $hostid . " ";
-  if ($centreon->user->admin == 0) {
-    $query .= "AND i.host_id = acl.host_id
+    AND i.host_id = :hostid ";
+    if ($centreon->user->admin == 0) {
+        $query .= "AND i.host_id = acl.host_id
         AND i.service_id = acl.service_id
         AND acl.group_id IN (" . ($grouplistStr != "" ? $grouplistStr : 0) . ")";
-  }
-  $query .= "AND s.enabled = 1
+    }
+    $query .= "AND s.enabled = 1
         AND h.enabled = 1;";
 
-  $numLine = 1;
+    $stmt = $db->prepare($query);
+    $stmt->bindParam(':hostid', $hostid, PDO::PARAM_INT);
+    $stmt->bindParam(':metricname', $preferences['metric_name'], PDO::PARAM_STR);
+    $stmt->bindParam(':serviceid', $serviceid, PDO::PARAM_INT);
+    $numLine = 0;
 
-  $res = $db->query($query);
-  while ($row = $res->fetch()) {
-    $row['details_uri'] = $resourceController->buildServiceDetailsUri($row['host_id'], $row['service_id']);
-    $row['host_uri'] = $resourceController->buildHostDetailsUri($row['host_id']);
-    $row['graph_uri'] = $resourceController->buildServiceUri($row['host_id'], $row['service_id'], 'graph');
-    $data[] = $row;
-    $numLine++;
-  }
+    $stmt->execute();
+    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+        $row['details_uri'] = $resourceController->buildServiceDetailsUri($row['host_id'], $row['service_id']);
+        $row['host_uri'] = $resourceController->buildHostDetailsUri($row['host_id']);
+        $row['graph_uri'] = $resourceController->buildServiceUri($row['host_id'], $row['service_id'], 'graph');
+        $data[] = $row;
+        $numLine++;
+    }
 
-  /* Calculate Threshold font size */
-  $preferences['threshold_font_size'] = round($preferences['font_size'] / 8,0);
-  if ( $preferences['threshold_font_size'] < 9 ) { $preferences['threshold_font_size'] = 9; }
+    /* Calculate Threshold font size */
+    $preferences['threshold_font_size'] = round($preferences['font_size'] / 8, 0);
+    if ($preferences['threshold_font_size'] < 9) {
+        $preferences['threshold_font_size'] = 9;
+    }
 
-  // Human readable
-  if ( strcmp($preferences['display_number'], '1000') == 0 or strcmp($preferences['display_number'], '1024') == 0 )
-  {
-     $new_value = humanReadable($data[0]['current_float_value'], $data[0]['unit_name'], $preferences['display_number']);
-     $data[0]['value_displayed'] = str_replace(".",",",$new_value[0]);
-     $data[0]['unit_displayed'] = $new_value[1];
-     if ( $data[0]['warning'] != '' ) {
-       $new_warning = humanReadable($data[0]['warning'], $data[0]['unit_name'], $preferences['display_number']);
-       $data[0]['warning_displayed'] = str_replace(".",",",$new_warning[0]);
-     }
-     if ( $data[0]['critical'] != '' ) {
-       $new_critical = humanReadable($data[0]['critical'], $data[0]['unit_name'], $preferences['display_number']);
-       $data[0]['critical_displayed'] = str_replace(".",",",$new_critical[0]);
-     }
-  } else {
-     $data[0]['value_displayed'] = $data[0]['current_value'];
-     $data[0]['unit_displayed'] =  $data[0]['unit_name'];
-     $data[0]['warning_displayed'] = $data[0]['warning'];
-     $data[0]['critical_displayed'] = $data[0]['critical'];
-  }
+    if ($numLine > 0) {
+        // Human readable
+        if (strcmp($preferences['display_number'], '1000') == 0 or strcmp($preferences['display_number'], '1024') == 0) {
+            $new_value = hr($data[0]['current_float_value'], $data[0]['unit_name'], $preferences['display_number']);
+            $data[0]['value_displayed'] = str_replace(".", ",", $new_value[0]);
+            $data[0]['unit_displayed'] = $new_value[1];
+            if ($data[0]['warning'] != '') {
+                $new_warning = hr($data[0]['warning'], $data[0]['unit_name'], $preferences['display_number']);
+                $data[0]['warning_displayed'] = str_replace(".", ",", $new_warning[0]);
+            }
+            if ($data[0]['critical'] != '') {
+                $new_critical = hr($data[0]['critical'], $data[0]['unit_name'], $preferences['display_number']);
+                $data[0]['critical_displayed'] = str_replace(".", ",", $new_critical[0]);
+            }
+        } else {
+            $data[0]['value_displayed'] = $data[0]['current_value'];
+            $data[0]['unit_displayed'] =  $data[0]['unit_name'];
+            $data[0]['warning_displayed'] = $data[0]['warning'];
+            $data[0]['critical_displayed'] = $data[0]['critical'];
+        }
+    }
 
-  $template->assign('preferences', $preferences);
-  $template->assign('widgetId', $widgetId);
-  $template->assign('autoRefresh', $autoRefresh);
-  $template->assign('data', $data);
-  $template->display('metric.ihtml');
+    $template->assign('preferences', $preferences);
+    $template->assign('widgetId', $widgetId);
+    $template->assign('autoRefresh', $autoRefresh);
+    $template->assign('data', $data);
+    $template->display('metric.ihtml');
 }
