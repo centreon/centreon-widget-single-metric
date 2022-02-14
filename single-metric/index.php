@@ -20,6 +20,7 @@
  */
 
 require_once "../require.php";
+require_once "functions.php";
 require_once $centreon_path . 'www/class/centreon.class.php';
 require_once $centreon_path . 'www/class/centreonSession.class.php';
 require_once $centreon_path . 'www/class/centreonWidget.class.php';
@@ -50,11 +51,11 @@ try {
     $preferences = $widgetObj->getWidgetPreferences($widgetId);
     $autoRefresh = filter_var($preferences['refresh_interval'], FILTER_VALIDATE_INT);
     $preferences['metric_name'] = filter_var($preferences['metric_name'], FILTER_SANITIZE_STRING);
-    $preferences['font_size'] = filter_var($preferences['font_size'], FILTER_VALIDATE_INT);
-    $preferences['display_number'] = filter_var($preferences['display_number'], FILTER_VALIDATE_INT);
-    $preferences['coloring'] = filter_var($preferences['coloring'], FILTER_SANITIZE_STRING);
-    $preferences['display_path'] = filter_var($preferences['display_path'], FILTER_VALIDATE_BOOLEAN);
-    $preferences['display_threshold'] = filter_var($preferences['display_threshold'], FILTER_VALIDATE_BOOLEAN);
+    $preferences['font_size'] = filter_var($preferences['font_size'] ?? 80, FILTER_VALIDATE_INT);
+    $preferences['display_number'] = filter_var($preferences['display_number'] ?? 1000, FILTER_VALIDATE_INT);
+    $preferences['coloring'] = filter_var($preferences['coloring'] ?? 'black', FILTER_SANITIZE_STRING);
+    $preferences['display_path'] = filter_var($preferences['display_path'] ?? false, FILTER_VALIDATE_BOOLEAN);
+    $preferences['display_threshold'] = filter_var($preferences['display_threshold'] ?? false, FILTER_VALIDATE_BOOLEAN);
 
     if ($autoRefresh === false || $autoRefresh < 5) {
         $autoRefresh = 30;
@@ -82,19 +83,6 @@ $template = new Smarty();
 $template = initSmartyTplForPopup($path, $template, "./", $centreon_path);
 
 $data = array();
-
-/**
-* Functions
-* Function Human Readable
-*/
-function hr($value, $unit, $base)
-{
-    $precision = 2;
-    $prefix = array('a', 'f', 'p', 'n', 'u', 'm', '', 'k', 'M', 'G', 'T', 'P', 'E', 'Z', 'Y');
-    $puissance = min(max(floor(log(abs($value), $base)), -6), 6);
-    $new_value = [ round((float)$value / pow($base, $puissance), $precision), $prefix[$puissance + 6] . $unit];
-    return($new_value);
-}
 
 if ($preferences['service'] == null) {
     $template->display('metric.ihtml');
@@ -159,7 +147,10 @@ if ($preferences['service'] == null) {
 
     if ($numLine > 0) {
         // Human readable
-        if (strcmp($preferences['display_number'], '1000') == 0 or strcmp($preferences['display_number'], '1024') == 0) {
+        if (
+            strcmp($preferences['display_number'], '1000') == 0 ||
+            strcmp($preferences['display_number'], '1024') == 0
+        ) {
             $new_value = hr($data[0]['current_float_value'], $data[0]['unit_name'], $preferences['display_number']);
             $data[0]['value_displayed'] = str_replace(".", ",", $new_value[0]);
             $data[0]['unit_displayed'] = $new_value[1];
