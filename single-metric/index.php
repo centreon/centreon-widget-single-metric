@@ -159,7 +159,10 @@ if ($preferences['service'] == null) {
 
     if ($numLine > 0) {
         // Human readable
-        if (strcmp($preferences['display_number'], '1000') == 0 or strcmp($preferences['display_number'], '1024') == 0) {
+        if (
+            strcmp($preferences['display_number'], '1000') == 0 ||
+            strcmp($preferences['display_number'], '1024') == 0
+        ) {
             $new_value = hr($data[0]['current_float_value'], $data[0]['unit_name'], $preferences['display_number']);
             $data[0]['value_displayed'] = str_replace(".", ",", $new_value[0]);
             $data[0]['unit_displayed'] = $new_value[1];
