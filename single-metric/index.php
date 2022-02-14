@@ -84,21 +84,19 @@ $template = initSmartyTplForPopup($path, $template, "./", $centreon_path);
 
 $data = array();
 
-if ($preferences['service'] == null) {
-    $template->display('metric.ihtml');
-} elseif ($preferences['service'] == "") {
+if ($preferences['service'] == null || $preferences['service'] == "") {
     $template->display('metric.ihtml');
 } else {
     $tabService = explode("-", $preferences['service']);
-    $hostid = $tabService[0];
-    $serviceid = $tabService[1];
+    $hostId = $tabService[0];
+    $serviceId = $tabService[1];
 
     $query = "SELECT
         i.host_name AS host_name,
         i.service_description AS service_description,
         i.service_id AS service_id,
         i.host_id AS host_id,
-        REPLACE(m.current_value,'.',',') AS current_value,
+        REPLACE(m.current_value, '.', ',') AS current_value,
         m.current_value AS current_float_value,
         m.metric_name AS metric_name,
         m.unit_name AS unit_name,
@@ -111,11 +109,11 @@ if ($preferences['service'] == null) {
     . ($centreon->user->admin == 0 ? ", centreon_acl acl " : "")
     . " , index_data i
     LEFT JOIN services s ON s.service_id  = i.service_id AND s.enabled = 1
-    WHERE i.service_id = :serviceid
+    WHERE i.service_id = :serviceId
     AND i.id = m.index_id
-    AND m.metric_name = :metricname
+    AND m.metric_name = :metricName
     AND i.host_id = h.host_id 
-    AND i.host_id = :hostid ";
+    AND i.host_id = :hostId ";
     if ($centreon->user->admin == 0) {
         $query .= "AND i.host_id = acl.host_id
         AND i.service_id = acl.service_id
@@ -125,9 +123,9 @@ if ($preferences['service'] == null) {
         AND h.enabled = 1;";
 
     $stmt = $db->prepare($query);
-    $stmt->bindParam(':hostid', $hostid, PDO::PARAM_INT);
-    $stmt->bindParam(':metricname', $preferences['metric_name'], PDO::PARAM_STR);
-    $stmt->bindParam(':serviceid', $serviceid, PDO::PARAM_INT);
+    $stmt->bindParam(':hostId', $hostId, PDO::PARAM_INT);
+    $stmt->bindParam(':metricName', $preferences['metric_name'], PDO::PARAM_STR);
+    $stmt->bindParam(':serviceId', $serviceId, PDO::PARAM_INT);
     $numLine = 0;
 
     $stmt->execute();
