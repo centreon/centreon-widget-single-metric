@@ -1,4 +1,4 @@
-# Pull Request MON-12273
+# Pull Request Template
 
 ## Description
 
