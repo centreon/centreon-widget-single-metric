@@ -19,7 +19,6 @@
  *
  */
 
-require_once "../require.php";
 require_once "functions.php";
 require_once $centreon_path . 'www/class/centreon.class.php';
 require_once $centreon_path . 'www/class/centreonSession.class.php';
@@ -38,17 +37,16 @@ if (!isset($_SESSION['centreon']) || !isset($_REQUEST['widgetId'])) {
 
 $centreon = $_SESSION['centreon'];
 $widgetId = filter_var($_REQUEST['widgetId'], FILTER_VALIDATE_INT);
-$grouplistStr = '';
 
 try {
     if ($widgetId === false) {
         throw new InvalidArgumentException('Widget ID must be an integer');
     }
-    $db_centreon = $dependencyInjector['configuration_db'];
-    $db = $dependencyInjector['realtime_db'];
+    $centreonDb = $dependencyInjector['configuration_db'];
+    $centreonRtDb = $dependencyInjector['realtime_db'];
 
-    $widgetObj = new CentreonWidget($centreon, $db_centreon);
-    $preferences = $widgetObj->getWidgetPreferences($widgetId);
+    $centreonWidget = new CentreonWidget($centreon, $centreonDb);
+    $preferences = $centreonWidget->getWidgetPreferences($widgetId);
     $autoRefresh = filter_var($preferences['refresh_interval'], FILTER_VALIDATE_INT);
     $preferences['metric_name'] = filter_var($preferences['metric_name'], FILTER_SANITIZE_STRING);
     $preferences['font_size'] = filter_var($preferences['font_size'] ?? 80, FILTER_VALIDATE_INT);
@@ -66,16 +64,19 @@ try {
 }
 
 $kernel = \App\Kernel::createForWeb();
+/**
+ * @var Centreon\Application\Controller\MonitoringResourceController $resourceController
+ */
 $resourceController = $kernel->getContainer()->get(
     \Centreon\Application\Controller\MonitoringResourceController::class
 );
 
 //configure smarty
-
-if ($centreon->user->admin == 0) {
+$isAdmin = $centreon->user->admin === '1';
+$accessGroups = [];
+if (! $isAdmin) {
     $access = new CentreonACL($centreon->user->get_id());
-    $grouplist = $access->getAccessGroups();
-    $grouplistStr = $access->getAccessGroupsString();
+    $accessGroups = $access->getAccessGroups();
 }
 
 $path = $centreon_path . "www/widgets/single-metric/src/";
@@ -84,57 +85,57 @@ $template = initSmartyTplForPopup($path, $template, "./", $centreon_path);
 
 $data = array();
 
-if ($preferences['service'] == null || $preferences['service'] == "") {
+if (! isset($preferences['service']) || $preferences['service'] === "") {
     $template->display('metric.ihtml');
 } else {
-    $tabService = explode("-", $preferences['service']);
-    $hostId = $tabService[0];
-    $serviceId = $tabService[1];
-
-    $query = "SELECT
-        i.host_name AS host_name,
-        i.service_description AS service_description,
-        i.service_id AS service_id,
-        i.host_id AS host_id,
-        REPLACE(m.current_value, '.', ',') AS current_value,
-        m.current_value AS current_float_value,
-        m.metric_name AS metric_name,
-        m.unit_name AS unit_name,
-        m.warn AS warning,
-        m.crit AS critical,
-        s.state AS status
-    FROM
-        metrics m,
-        hosts h "
-    . ($centreon->user->admin == 0 ? ", centreon_acl acl " : "")
-    . " , index_data i
-    LEFT JOIN services s ON s.service_id  = i.service_id AND s.enabled = 1
-    WHERE i.service_id = :serviceId
-    AND i.id = m.index_id
-    AND m.metric_name = :metricName
-    AND i.host_id = h.host_id 
-    AND i.host_id = :hostId ";
-    if ($centreon->user->admin == 0) {
-        $query .= "AND i.host_id = acl.host_id
-        AND i.service_id = acl.service_id
-        AND acl.group_id IN (" . ($grouplistStr != "" ? $grouplistStr : 0) . ")";
-    }
-    $query .= "AND s.enabled = 1
-        AND h.enabled = 1;";
-
-    $stmt = $db->prepare($query);
-    $stmt->bindParam(':hostId', $hostId, PDO::PARAM_INT);
-    $stmt->bindParam(':metricName', $preferences['metric_name'], PDO::PARAM_STR);
-    $stmt->bindParam(':serviceId', $serviceId, PDO::PARAM_INT);
+    list($hostId, $serviceId) = explode("-", $preferences['service']);
     $numLine = 0;
+    if ($isAdmin || ! empty($accessGroups)) {
+        $query =
+            "SELECT
+                i.host_name AS host_name,
+                i.service_description AS service_description,
+                i.service_id AS service_id,
+                i.host_id AS host_id,
+                REPLACE(m.current_value, '.', ',') AS current_value,
+                m.current_value AS current_float_value,
+                m.metric_name AS metric_name,
+                m.unit_name AS unit_name,
+                m.warn AS warning,
+                m.crit AS critical,
+                s.state AS status
+            FROM
+                metrics m,
+                hosts h "
+                    . (!$isAdmin ? ", centreon_acl acl " : "")
+                    . " , index_data i
+            LEFT JOIN services s ON s.service_id  = i.service_id AND s.enabled = 1
+            WHERE i.service_id = :serviceId
+            AND i.id = m.index_id
+            AND m.metric_name = :metricName
+            AND i.host_id = h.host_id 
+            AND i.host_id = :hostId ";
+        if (!$isAdmin) {
+            $query .= "AND i.host_id = acl.host_id
+                AND i.service_id = acl.service_id
+                AND acl.group_id IN (" . implode(',', array_keys($accessGroups)) . ")";
+        }
+        $query .= "AND s.enabled = 1
+            AND h.enabled = 1;";
 
-    $stmt->execute();
-    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-        $row['details_uri'] = $resourceController->buildServiceDetailsUri($row['host_id'], $row['service_id']);
-        $row['host_uri'] = $resourceController->buildHostDetailsUri($row['host_id']);
-        $row['graph_uri'] = $resourceController->buildServiceUri($row['host_id'], $row['service_id'], 'graph');
-        $data[] = $row;
-        $numLine++;
+        $stmt = $centreonRtDb->prepare($query);
+        $stmt->bindParam(':hostId', $hostId, PDO::PARAM_INT);
+        $stmt->bindParam(':metricName', $preferences['metric_name'], PDO::PARAM_STR);
+        $stmt->bindParam(':serviceId', $serviceId, PDO::PARAM_INT);
+        $stmt->execute();
+
+        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+            $row['details_uri'] = $resourceController->buildServiceDetailsUri($row['host_id'], $row['service_id']);
+            $row['host_uri'] = $resourceController->buildHostDetailsUri($row['host_id']);
+            $row['graph_uri'] = $resourceController->buildServiceUri($row['host_id'], $row['service_id'], 'graph');
+            $data[] = $row;
+            $numLine++;
+        }
     }
 
     /* Calculate Threshold font size */
@@ -145,20 +146,28 @@ if ($preferences['service'] == null || $preferences['service'] == "") {
 
     if ($numLine > 0) {
         // Human readable
-        if (
-            strcmp($preferences['display_number'], '1000') == 0 ||
-            strcmp($preferences['display_number'], '1024') == 0
-        ) {
-            $new_value = hr($data[0]['current_float_value'], $data[0]['unit_name'], $preferences['display_number']);
-            $data[0]['value_displayed'] = str_replace(".", ",", $new_value[0]);
-            $data[0]['unit_displayed'] = $new_value[1];
-            if ($data[0]['warning'] != '') {
-                $new_warning = hr($data[0]['warning'], $data[0]['unit_name'], $preferences['display_number']);
-                $data[0]['warning_displayed'] = str_replace(".", ",", $new_warning[0]);
+        if ($preferences['display_number'] === 1000 || $preferences['display_number'] === 1024) {
+            list($size, $data[0]['unit_displayed']) = convertSizeToHumanReadable(
+                $data[0]['current_float_value'],
+                $data[0]['unit_name'],
+                $preferences['display_number']
+            );
+            $data[0]['value_displayed'] = str_replace(".", ",", (string) $size);
+            if ($data[0]['warning'] !== '') {
+                $newWarning = convertSizeToHumanReadable(
+                    $data[0]['warning'],
+                    $data[0]['unit_name'],
+                    $preferences['display_number']
+                );
+                $data[0]['warning_displayed'] = str_replace(".", ",", (string) $newWarning[0]);
             }
-            if ($data[0]['critical'] != '') {
-                $new_critical = hr($data[0]['critical'], $data[0]['unit_name'], $preferences['display_number']);
-                $data[0]['critical_displayed'] = str_replace(".", ",", $new_critical[0]);
+            if ($data[0]['critical'] !== '') {
+                $newCritical = convertSizeToHumanReadable(
+                    $data[0]['critical'],
+                    $data[0]['unit_name'],
+                    $preferences['display_number']
+                );
+                $data[0]['critical_displayed'] = str_replace(".", ",", (string) $newCritical[0]);
             }
         } else {
             $data[0]['value_displayed'] = $data[0]['current_value'];

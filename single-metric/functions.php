@@ -20,14 +20,17 @@
  */
 
 /**
-* Functions
-* Function Human Readable
-*/
-function hr($value, $unit, $base)
+ * Convert a size to be human readable.
+ *
+ * @param float|int $value Value to convert
+ * @param string $unit Unit of value
+ * @param int $base Conversion base (ex: 1024)
+ * @return array{0: float, 1: string}
+ */
+function convertSizeToHumanReadable(float|int $value, string $unit, int $base): array
 {
-    $precision = 2;
+    $accuracy = 2;
     $prefix = array('a', 'f', 'p', 'n', 'u', 'm', '', 'k', 'M', 'G', 'T', 'P', 'E', 'Z', 'Y');
-    $puissance = min(max(floor(log(abs($value), $base)), -6), 6);
-    $new_value = [ round((float)$value / pow($base, $puissance), $precision), $prefix[$puissance + 6] . $unit];
-    return($new_value);
+    $power = min(max(floor(log(abs($value), $base)), -6), 6);
+    return [ round((float)$value / pow($base, $power), $accuracy), $prefix[$power + 6] . $unit];
 }
