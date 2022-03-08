@@ -19,7 +19,7 @@ Please include a short resume of the changes and what is the purpose of PR. Any 
 - [ ] 20.10.x
 - [ ] 21.04.x
 - [ ] 21.10.x
-- [X] 22.04.x (master)
+- [ ] 22.04.x (master)
 
 <h2> How this pull request can be tested ? </h2>
 
