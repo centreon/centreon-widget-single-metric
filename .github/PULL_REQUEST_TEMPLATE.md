@@ -10,7 +10,7 @@ Please include a short resume of the changes and what is the purpose of PR. Any 
 
 ## Type of change
 
-- [X] Patch fixing an issue (non-breaking change)
+- [ ] Patch fixing an issue (non-breaking change)
 - [ ] New functionality (non-breaking change)
 - [ ] Breaking change (patch or feature) that might cause side effects breaking part of the Software
 
