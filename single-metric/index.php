@@ -19,6 +19,7 @@
  *
  */
 
+require_once "../require.php";
 require_once "functions.php";
 require_once $centreon_path . 'www/class/centreon.class.php';
 require_once $centreon_path . 'www/class/centreonSession.class.php';
