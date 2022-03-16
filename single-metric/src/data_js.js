@@ -31,9 +31,9 @@ function loadMetric() {
             widgetId: widgetId
 		},
         success : function(htmlData) {
-            var data = jQuery(htmlData).filter('#metric');
-            var $container = $('#metric');
-            var h;
+            let data = jQuery(htmlData).filter('#metric');  
+            let $container = $('#metric');
+            let h;
 
             $container.html(data);
 
