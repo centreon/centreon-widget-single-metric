@@ -20,16 +20,16 @@
  var timeout;
 
 jQuery(function() {
-	loadMetric();
+    loadMetric();
 });
 
 function loadMetric() {
-	jQuery.ajax({
-		url: './index.php',
+    jQuery.ajax({
+        url: './index.php',
         type: 'GET',
-		data: {
+        data: {
             widgetId: widgetId
-		},
+        },
         success : function(htmlData) {
             let data = jQuery(htmlData).filter('#metric');  
             let $container = $('#metric');
@@ -45,7 +45,7 @@ function loadMetric() {
                 parent.iResize(window.name, 200);
             }
         }
-	});
+    });
 
     if (autoRefresh && autoRefresh != "") {
         if (timeout) {

@@ -7,7 +7,7 @@
   <version>22.04.0</version>
   <keywords>centreon, widget, service, perfdata</keywords>
   <screenshot></screenshot>
-  <thumbnail>./widgets/single-metric/resources/centreon-logo.png</thumbnail>
+  <thumbnail>./widgets/single-metric/resources/logo1.png</thumbnail>
   <url>./widgets/single-metric/index.php</url>
   <autoRefresh>10</autoRefresh>
     <preferences>
