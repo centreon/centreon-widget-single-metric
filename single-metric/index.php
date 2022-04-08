@@ -154,7 +154,7 @@ if (! isset($preferences['service']) || $preferences['service'] === "") {
                 $preferences['display_number']
             );
             $data[0]['value_displayed'] = str_replace(".", ",", (string) $size);
-            if ($data[0]['warning'] !== null and is_numeric($data[0]['warning'])) {
+            if (is_numeric($data[0]['warning'])) {
                 $newWarning = convertSizeToHumanReadable(
                     $data[0]['warning'],
                     $data[0]['unit_name'],
