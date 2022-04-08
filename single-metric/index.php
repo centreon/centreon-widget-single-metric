@@ -162,7 +162,7 @@ if (! isset($preferences['service']) || $preferences['service'] === "") {
                 );
                 $data[0]['warning_displayed'] = str_replace(".", ",", (string) $newWarning[0]);
             }
-            if ($data[0]['critical'] !== null and is_numeric($data[0]['critical'])) {
+            if (is_numeric($data[0]['critical'])) {
                 $newCritical = convertSizeToHumanReadable(
                     $data[0]['critical'],
                     $data[0]['unit_name'],
